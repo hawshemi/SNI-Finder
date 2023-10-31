@@ -16,17 +16,14 @@
 
 ### Windows:
 
-1. Download from Releases.
-2. open `CMD` or `Powershell` in the directory.
+1. Download from [Releases](https://github.com/hawshemi/SNI-Finder/releases/latest).
+2. Open `CMD` or `Powershell` in the directory.
 3.
     ```
     ./SNI-Finder.exe -addr ip
     ```
 
 #### Replace `ip` to your VPS IP Address.
-
-
-
 
 
 ## Build
