@@ -7,7 +7,7 @@
 
 1.
     ```
-    wget "https://github.com/hawshemi/SNI-Finder/releases/latest/download/SNI-Finder-linux-64" -O SNI-Finder && chmod +x SNI-Finder
+    wget "https://github.com/hawshemi/SNI-Finder/releases/latest/download/SNI-Finder-linux-amd64" -O SNI-Finder && chmod +x SNI-Finder
     ```
 2. 
     ```
