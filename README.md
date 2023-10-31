@@ -20,7 +20,7 @@
 2. Open `CMD` or `Powershell` in the directory.
 3.
     ```
-    .\SNI-Finder-windows-64.exe -addr ip
+    .\SNI-Finder-windows-amd64.exe -addr ip
     ```
 
 #### Replace `ip` with your VPS IP Address.
