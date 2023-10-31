@@ -23,7 +23,7 @@
     ./SNI-Finder.exe -addr ip
     ```
 
-#### Replace `ip` to your VPS IP Address.
+#### Replace `ip` with your VPS IP Address.
 
 
 ## Build
@@ -47,7 +47,7 @@ wget "https://raw.githubusercontent.com/hawshemi/SNI-Finder/main/install-go.sh" 
 git clone https://github.com/hawshemi/SNI-Finder.git 
 ```
 
-#### 2. Navigate into repository directory
+#### 2. Navigate into the repository directory
 ```
 cd SNI-Finder 
 ```
