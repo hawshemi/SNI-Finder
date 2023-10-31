@@ -47,12 +47,12 @@ wget "https://raw.githubusercontent.com/hawshemi/SNI-Finder/main/install-go.sh" 
 git clone https://github.com/hawshemi/SNI-Finder.git 
 ```
 
-#### 2. Navigate into your repository directory
+#### 2. Navigate into repository directory
 ```
 cd SNI-Finder 
 ```
 
-#### 3. Build your application
+#### 3. Build
 ```
 go build
 ```
