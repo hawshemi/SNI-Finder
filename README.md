@@ -40,8 +40,7 @@ sudo apt install -y wget
 wget "https://raw.githubusercontent.com/hawshemi/SNI-Finder/main/install-go.sh" -O install-go.sh && chmod +x install-go.sh && bash install-go.sh
 ```
 
-Then, clone your repository and build your application for Windows with AMD64 architecture:
-
+#### Then:
 
 #### 1. Clone repository
 ```
