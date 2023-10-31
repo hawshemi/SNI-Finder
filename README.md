@@ -30,7 +30,7 @@
 
 ### Prerequisites
 
-#### Install `wget`
+#### Install `wget`:
 ```
 sudo apt install -y wget
 ```
@@ -42,7 +42,7 @@ wget "https://raw.githubusercontent.com/hawshemi/SNI-Finder/main/install-go.sh" 
 
 #### Then:
 
-#### 1. Clone repository
+#### 1. Clone the repository
 ```
 git clone https://github.com/hawshemi/SNI-Finder.git 
 ```
