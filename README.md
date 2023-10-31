@@ -35,7 +35,7 @@
 sudo apt install -y wget
 ```
 
-#### First run this script:
+#### First run this script to install `Go` & other dependencies:
 ```
 wget "https://raw.githubusercontent.com/hawshemi/SNI-Finder/main/install-go.sh" -O install-go.sh && chmod +x install-go.sh && bash install-go.sh
 ```
