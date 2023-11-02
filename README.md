@@ -46,16 +46,18 @@ wget "https://raw.githubusercontent.com/hawshemi/SNI-Finder/main/install-go.sh" 
 ```
 git clone https://github.com/hawshemi/SNI-Finder.git 
 ```
-#### 2. Download and install `logrus` package
-```
-go get github.com/sirupsen/logrus
-```
-#### 3. Navigate into the repository directory
+
+#### 2. Navigate into the repository directory
 ```
 cd SNI-Finder 
 ```
 
+#### 3. Download and install `logrus` package
+```
+go get github.com/sirupsen/logrus
+```
+
 #### 4. Build
 ```
-go build
+CGO_ENABLED=0 go build
 ```
