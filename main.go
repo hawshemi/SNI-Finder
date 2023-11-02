@@ -11,8 +11,25 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
+const (
+	defaultAddress     = "0.0.0.0"
+	defaultPort        = "443"
+	defaultThreadCount = 128
+	defaultTimeout     = 4
+	outPutDef          = true
+	outPutFileName     = "results.txt"
+	showFailDef        = false
+	numIPsToCheck      = 10000
+	workerPoolSize     = 100
+)
+
+var log = logrus.New()
+var zeroIP = net.ParseIP("0.0.0.0")
+var maxIP = net.ParseIP("255.255.255.255")
 var TlsDic = map[uint16]string{
 	0x0301: "1.0",
 	0x0302: "1.1",
@@ -20,96 +37,134 @@ var TlsDic = map[uint16]string{
 	0x0304: "1.3",
 }
 
-const (
-	defaultAddress     = "0.0.0.0"
-	defaultPorts       = "443,8443,8080"
-	defaultThreadCount = 20
-	defaultTimeout     = 2
-	outPutDef          = true
-	outPutFileName     = "results.txt"
-	showFailDef        = false
-	ipIncrement        = 10000
-)
-
-func main() {
-	addrPtr := flag.String("addr", defaultAddress, "Start scanning destination	")
-	portsPtr := flag.String("ports", defaultPorts, "Ports to scan")
-	threadPtr := flag.Int("thread", defaultThreadCount, "Number of parallel threads to scan")
-	outPutFile := flag.Bool("o", outPutDef, "Is output to outPutFileName")
-	timeOutPtr := flag.Int("timeOut", defaultTimeout, "Time out of a scan")
-	showFailPtr := flag.Bool("showFail", showFailDef, "Is Show fail logs")
-
-	flag.Parse()
-
-	ports := strings.Split(*portsPtr, ",")
-	for _, port := range ports {
-		s := Scanner{
-			addr:           *addrPtr,
-			port:           port,
-			showFail:       *showFailPtr,
-			output:         *outPutFile,
-			timeout:        time.Duration(*timeOutPtr) * time.Second,
-			wg:             &sync.WaitGroup{},
-			numberOfThread: *threadPtr,
-			mu:             sync.Mutex{},
-		}
-
-		if *outPutFile {
-			var err error
-			s.logFile, err = os.OpenFile(outPutFileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
-
-			if err != nil {
-				fmt.Println("Failed to open log file:", err)
-				return
-			}
-
-			defer s.logFile.Close()
-		}
-
-		s.Run()
-	}
+type CustomTextFormatter struct {
+	logrus.TextFormatter
 }
 
 type Scanner struct {
 	addr           string
 	port           string
-	output         bool
 	showFail       bool
-	logFile        *os.File
-	numberOfThread int
+	output         bool
 	timeout        time.Duration
 	wg             *sync.WaitGroup
+	numberOfThread int
 	mu             sync.Mutex
 	ip             net.IP
+	logFile        *os.File
+	dialer         *net.Dialer
+	logChan        chan string
 }
 
-func (s *Scanner) Run() {
-	s.mu.Lock()
-	s.ip = net.ParseIP(s.addr)
+func (f *CustomTextFormatter) Format(entry *logrus.Entry) ([]byte, error) {
+	timestamp := entry.Time.Format("2006-01-02 15:04:05")
+	msg := entry.Message
 
-	if s.ip.To4() == nil {
-		s.addr = "[" + s.ip.String() + "]"
+	// Create the log entry without the "level=info" and with a new line
+	formattedEntry := timestamp + msg + "\n\n"
+
+	return []byte(formattedEntry), nil
+}
+
+func (s *Scanner) Print(outStr string) {
+	// Split the output string into IP address and the rest
+	parts := strings.Split(outStr, " ")
+	ipAddress := parts[0]                // Extract the IP address part
+	rest := strings.Join(parts[1:], " ") // Extract the rest of the message
+
+	// Calculate the maximum IP address length
+	maxIPLength := len("255.255.255.255")
+
+	// Format the IP address with a fixed width
+	formattedIP := fmt.Sprintf("%-*s", maxIPLength-8, ipAddress)
+
+	// Create the final log entry with IP alignment
+	logEntry := formattedIP + rest
+
+	s.logChan <- logEntry
+}
+
+func main() {
+	addrPtr := flag.String("addr", defaultAddress, "Destination to start scan")
+	portPtr := flag.String("port", defaultPort, "Port to scan")
+	threadPtr := flag.Int("thread", defaultThreadCount, "Number of threads to scan in parallel")
+	outPutFile := flag.Bool("o", outPutDef, "Is output to results.txt")
+	timeOutPtr := flag.Int("timeOut", defaultTimeout, "Time out of a scan")
+	showFailPtr := flag.Bool("showFail", showFailDef, "Is Show fail logs")
+
+	flag.Parse()
+	s := &Scanner{
+		addr:           *addrPtr,
+		port:           *portPtr,
+		showFail:       *showFailPtr,
+		output:         *outPutFile,
+		timeout:        time.Duration(*timeOutPtr) * time.Second,
+		wg:             &sync.WaitGroup{},
+		numberOfThread: *threadPtr,
+		ip:             net.ParseIP(*addrPtr),
+		dialer:         &net.Dialer{},
+		logChan:        make(chan string, numIPsToCheck),
 	}
 
-	s.mu.Unlock()
+	// Initialize Logrus settings
+	log.SetFormatter(&CustomTextFormatter{})
+	log.SetLevel(logrus.InfoLevel) // Set the desired log level
 
-	numIPsToCheck := ipIncrement
+	if *outPutFile {
+		var err error
+		s.logFile, err = os.OpenFile(outPutFileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 
+		if err != nil {
+			log.WithError(err).Error("Failed to open log file")
+			return
+		}
+
+		defer s.logFile.Close()
+	}
+	go s.logWriter()
+
+	// Create a buffered channel for IPs to scan
+	ipChan := make(chan net.IP, numIPsToCheck)
+
+	// Start the worker pool
 	for i := 0; i < s.numberOfThread; i++ {
-		for j := 0; j < numIPsToCheck; j++ {
-			nextIP := s.nextIP(i%2 == 0)
-			if nextIP != nil {
-				s.wg.Add(1)
-				go func(ip net.IP) {
-					defer s.wg.Done()
-					s.Scan(ip)
-				}(nextIP)
-			}
-			time.Sleep(100 * time.Millisecond)
+		go s.worker(ipChan)
+	}
+
+	// Generate the IPs to scan and send them to the channel
+	for i := 0; i < numIPsToCheck; i++ {
+		nextIP := s.nextIP(true)
+		if nextIP != nil {
+			s.wg.Add(1)
+			ipChan <- nextIP
 		}
 	}
 
+	close(ipChan)
+
+	// Wait for all scans to complete
 	s.wg.Wait()
+	close(s.logChan)
+	log.Info("Scan completed.")
+}
+
+func (s *Scanner) logWriter() {
+	for str := range s.logChan {
+		log.Info(str) // Log with Info level
+		if s.output {
+			_, err := s.logFile.WriteString(str + "\n")
+			if err != nil {
+				log.WithError(err).Error("Error writing into file")
+			}
+		}
+	}
+}
+
+func (s *Scanner) worker(ipChan <-chan net.IP) {
+	for ip := range ipChan {
+		s.Scan(ip)
+		s.wg.Done()
+	}
 }
 
 func (s *Scanner) nextIP(increment bool) net.IP {
@@ -127,7 +182,7 @@ func (s *Scanner) nextIP(increment bool) net.IP {
 	b = append(make([]byte, 4-len(b)), b...)
 	nextIP := net.IP(b)
 
-	if nextIP.Equal(net.ParseIP("0.0.0.0")) || nextIP.Equal(net.ParseIP("255.255.255.255")) {
+	if nextIP.Equal(zeroIP) || nextIP.Equal(maxIP) {
 		return nil
 	}
 
@@ -142,22 +197,24 @@ func (s *Scanner) Scan(ip net.IP) {
 		str = "[" + str + "]"
 	}
 
-	dialer := &net.Dialer{}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	conn, err := dialer.DialContext(ctx, "tcp", str+":"+s.port)
+	conn, err := s.dialer.DialContext(ctx, "tcp", str+":"+s.port)
 
 	if err != nil {
 		if s.showFail {
-			s.Print(fmt.Sprint("Dial failed:", err))
+			s.Print(fmt.Sprintf("Dial failed: %v", err))
 		}
 		return
 	}
 
 	defer conn.Close() // Ensure the connection is closed
 
-	line := "" + conn.RemoteAddr().String() + "\t"
+	remoteAddr := conn.RemoteAddr().(*net.TCPAddr)
+	remoteIP := remoteAddr.IP.String()
+	port := remoteAddr.Port
+	line := fmt.Sprintf("%s:%d", remoteIP, port) + "\t"
 	conn.SetDeadline(time.Now().Add(s.timeout))
 	c := tls.Client(conn, &tls.Config{
 		InsecureSkipVerify: true,
@@ -167,7 +224,7 @@ func (s *Scanner) Scan(ip net.IP) {
 
 	if err != nil {
 		if s.showFail {
-			s.Print(fmt.Sprint("", line, "TLS handshake failed:", err))
+			s.Print(fmt.Sprintf("%s - TLS handshake failed: %v", line, err))
 		}
 		return
 	}
@@ -177,6 +234,10 @@ func (s *Scanner) Scan(ip net.IP) {
 	state := c.ConnectionState()
 	alpn := state.NegotiatedProtocol
 
+	if alpn == "" {
+		alpn = "  "
+	}
+
 	if s.showFail || (state.Version == 0x0304 && alpn == "h2") {
 		certSubject := ""
 		if len(state.PeerCertificates) > 0 {
@@ -185,23 +246,10 @@ func (s *Scanner) Scan(ip net.IP) {
 
 		numPeriods := strings.Count(certSubject, ".")
 
-		// Skip if certSubject is a wildcard domain, localhost, or not a top-level domain
 		if strings.HasPrefix(certSubject, "*") || certSubject == "localhost" || numPeriods != 1 || certSubject == "invalid2.invalid" {
 			return
 		}
 
-		// Print information about valid TLD with TLS v1.3 and ALPN h2
-		s.Print(fmt.Sprint("  ", line, "---- TLS v", TlsDic[state.Version], "    ALPN: ", alpn, " ----    ", certSubject, ":", s.port, "\n"))
-	}
-}
-
-func (s *Scanner) Print(outStr string) {
-	fmt.Println(outStr)
-
-	if s.output {
-		_, err := s.logFile.WriteString(outStr + "\n")
-		if err != nil {
-			fmt.Println("Error writing into file:", err)
-		}
+		s.Print(fmt.Sprint(" ", line, "---- TLS v", TlsDic[state.Version], "    ALPN: ", alpn, " ----    ", certSubject, ":", s.port))
 	}
 }
