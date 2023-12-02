@@ -41,7 +41,7 @@ It is Recommended to run this scanner locally _(with you residential internet)_.
 sudo apt install -y wget
 ```
 
-#### First run this script to install `Go` & other dependencies: _(Debian & Ubuntu)_
+#### First run this script to install `Go` & other dependencies _(Debian & Ubuntu)_:
 ```
 wget "https://raw.githubusercontent.com/hawshemi/SNI-Finder/main/install-go.sh" -O install-go.sh && chmod +x install-go.sh && bash install-go.sh
 ```
