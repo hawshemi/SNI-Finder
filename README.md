@@ -45,7 +45,7 @@ sudo apt install -y wget
 ```
 wget "https://raw.githubusercontent.com/hawshemi/SNI-Finder/main/install-go.sh" -O install-go.sh && chmod +x install-go.sh && bash install-go.sh
 ```
-##### Reboot is recommended.
+- Reboot is recommended.
 
 
 #### Then:
