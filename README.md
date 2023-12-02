@@ -1,5 +1,11 @@
 # SNI Finder
 
+This script will scan all domains that have `TLS 1.3` and `h2` enabled on your VPS IP address range. These domains are useful for SNI in a variety of configurations and tests.
+
+When you begin the scan, two files are created: `results.txt` contains the output log, while `domains.txt` only contains the domain names.
+
+It is Recommended to run this scanner locally _(with you residential internet)_. It may cause VPS to be flagged if you run scanner in the cloud.
+
 
 ## Run
 
@@ -39,6 +45,8 @@ sudo apt install -y wget
 ```
 wget "https://raw.githubusercontent.com/hawshemi/SNI-Finder/main/install-go.sh" -O install-go.sh && chmod +x install-go.sh && bash install-go.sh
 ```
+##### Reboot is recommended.
+
 
 #### Then:
 
