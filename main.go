@@ -22,6 +22,7 @@ const (
 	defaultTimeout     = 4
 	outPutDef          = true
 	outPutFileName     = "results.txt"
+	domainsFileName    = "domains.txt"
 	showFailDef        = false
 	numIPsToCheck      = 10000
 	workerPoolSize     = 100
@@ -52,6 +53,7 @@ type Scanner struct {
 	mu             sync.Mutex
 	ip             net.IP
 	logFile        *os.File
+	domainFile     *os.File // New file pointer for domains.txt
 	dialer         *net.Dialer
 	logChan        chan string
 }
@@ -81,7 +83,38 @@ func (s *Scanner) Print(outStr string) {
 	// Create the final log entry with IP alignment
 	logEntry := formattedIP + rest
 
+	// Extract the domain from the log entry
+	domain := extractDomain(logEntry)
+
+	// Save the domain to domains.txt
+	saveDomain(domain, s.domainFile)
+
 	s.logChan <- logEntry
+}
+
+func extractDomain(logEntry string) string {
+	// Split the log entry into words
+	parts := strings.Fields(logEntry)
+
+	// Search for a word that looks like a domain (contains a dot)
+	for i, part := range parts {
+		if strings.Contains(part, ".") && !strings.HasPrefix(part, "v") && i > 0 {
+			// Split the part using ":" and take the first part (domain)
+			domainParts := strings.Split(part, ":")
+			return domainParts[0]
+		}
+	}
+
+	return ""
+}
+
+func saveDomain(domain string, file *os.File) {
+	if domain != "" {
+		_, err := file.WriteString(domain + "\n")
+		if err != nil {
+			log.WithError(err).Error("Error writing domain into file")
+		}
+	}
 }
 
 func main() {
@@ -110,17 +143,23 @@ func main() {
 	log.SetFormatter(&CustomTextFormatter{})
 	log.SetLevel(logrus.InfoLevel) // Set the desired log level
 
-	if *outPutFile {
-		var err error
-		s.logFile, err = os.OpenFile(outPutFileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
-
-		if err != nil {
-			log.WithError(err).Error("Failed to open log file")
-			return
-		}
-
-		defer s.logFile.Close()
+	// Open results.txt file for writing
+	var err error
+	s.logFile, err = os.OpenFile(outPutFileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+	if err != nil {
+		log.WithError(err).Error("Failed to open log file")
+		return
 	}
+	defer s.logFile.Close()
+
+	// Open domains.txt file for writing
+	s.domainFile, err = os.OpenFile(domainsFileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+	if err != nil {
+		log.WithError(err).Error("Failed to open domains.txt file")
+		return
+	}
+	defer s.domainFile.Close()
+
 	go s.logWriter()
 
 	// Create a buffered channel for IPs to scan
@@ -246,7 +285,7 @@ func (s *Scanner) Scan(ip net.IP) {
 
 		numPeriods := strings.Count(certSubject, ".")
 
-		if strings.HasPrefix(certSubject, "*") || certSubject == "localhost" || numPeriods != 1 || certSubject == "invalid2.invalid" {
+		if strings.HasPrefix(certSubject, "*") || certSubject == "localhost" || numPeriods != 1 || certSubject == "invalid2.invalid" || certSubject == "OPNsense.localdomain" {
 			return
 		}
 
