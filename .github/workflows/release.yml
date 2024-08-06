@@ -61,8 +61,8 @@ jobs:
       - name: Download binaries
         uses: actions/download-artifact@v4
         with:
-          name: SNI-Finder-*
-          path: .
+          pattern: SNI-Finder-*
+          merge-multiple: true
 
       - name: Create Release
         id: create_release
