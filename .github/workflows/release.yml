@@ -27,18 +27,28 @@ jobs:
       - name: Run go mod tidy
         run: go mod tidy
 
+      - name: Set environment variables
+        run: |
+          if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
+            echo "GOOS=linux" >> $GITHUB_ENV
+          elif [ "${{ matrix.os }}" == "macos-latest" ]; then
+            echo "GOOS=darwin" >> $GITHUB_ENV
+          else
+            echo "GOOS=windows" >> $GITHUB_ENV
+          fi
+
       - name: Build binary
         env:
           GOARCH: ${{ matrix.arch }}
-          GOOS: ${{ matrix.os == 'ubuntu-latest' && 'linux' || matrix.os == 'macos-latest' && 'darwin' || 'windows' }}
+          GOOS: ${{ env.GOOS }}
         run: |
-          go build -o SNI-Finder-${{ matrix.os }}-${{ matrix.arch }} .
+          go build -o SNI-Finder-${{ env.GOOS }}-${{ matrix.arch }} .
 
       - name: Upload binaries
         uses: actions/upload-artifact@v3
         with:
-          name: SNI-Finder-${{ matrix.os }}-${{ matrix.arch }}
-          path: SNI-Finder-${{ matrix.os }}-${{ matrix.arch }}
+          name: SNI-Finder-${{ env.GOOS }}-${{ matrix.arch }}
+          path: SNI-Finder-${{ env.GOOS }}-${{ matrix.arch }}
 
   release:
     name: Create GitHub Release
@@ -49,7 +59,7 @@ jobs:
       - name: Download binaries
         uses: actions/download-artifact@v3
         with:
-          name: SNI-Finder-${{ matrix.os }}-${{ matrix.arch }}
+          name: SNI-Finder-${{ env.GOOS }}-${{ matrix.arch }}
           path: .
 
       - name: Create Release
@@ -69,6 +79,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: SNI-Finder-${{ matrix.os }}-${{ matrix.arch }}
-          asset_name: SNI-Finder-${{ matrix.os }}-${{ matrix.arch }}
+          asset_path: SNI-Finder-${{ env.GOOS }}-${{ matrix.arch }}
+          asset_name: SNI-Finder-${{ env.GOOS }}-${{ matrix.arch }}
           asset_content_type: application/octet-stream
