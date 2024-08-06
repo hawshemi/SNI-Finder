@@ -24,6 +24,9 @@ jobs:
         with:
           go-version: '1.21'
 
+      - name: Run go mod tidy
+        run: go mod tidy
+
       - name: Build binary
         env:
           GOARCH: ${{ matrix.arch }}
