@@ -59,7 +59,7 @@ jobs:
       - name: Download binaries
         uses: actions/download-artifact@v3
         with:
-          name: SNI-Finder-${{ env.GOOS }}-${{ matrix.arch }}
+          name: SNI-Finder-*
           path: .
 
       - name: Create Release
