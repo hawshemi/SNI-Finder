@@ -6,7 +6,6 @@ on:
       - '*'
 
 env:
-  REGISTRY_IMAGE: vladkmrdnv/water_level_of_the_oka_river_bot
   BIN_PATH: /tmp/bin
 
 jobs:
