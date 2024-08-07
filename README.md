@@ -9,11 +9,13 @@ It is recommended to run this scanner locally _(with your residential internet)_
 
 ## Run
 
-### Linux:
+### Linux/Mac OS:
+
+Be careful when choosing an architecture, all binaries are available in two versions - `amd64` and `arm64`.
 
 1.
     ```
-    wget "https://github.com/hawshemi/SNI-Finder/releases/latest/download/SNI-Finder-linux-amd64" -O SNI-Finder && chmod +x SNI-Finder
+    wget "https://github.com/hawshemi/SNI-Finder/releases/latest/download/SNI-Finder-$(uname -s | tr A-Z a-z)-amd64" -O SNI-Finder && chmod +x SNI-Finder
     ```
 2. 
     ```

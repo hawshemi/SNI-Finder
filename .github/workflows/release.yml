@@ -1,0 +1,82 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - '*'
+
+env:
+  BIN_PATH: /tmp/bin
+
+jobs:
+  build:
+    name: Build binaries
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        arch: [amd64, arm64]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+          cache: false
+
+      - name: Run go mod tidy
+        run: go mod tidy
+
+      - name: Set environment variables
+        run: |
+          if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
+            echo "GOOS=linux" >> $GITHUB_ENV
+          elif [ "${{ matrix.os }}" == "macos-latest" ]; then
+            echo "GOOS=darwin" >> $GITHUB_ENV
+          else
+            echo "GOOS=windows" >> $GITHUB_ENV
+            echo "EXT=.exe" >> $GITHUB_ENV
+          fi
+
+      - name: Build binary
+        env:
+          GOARCH: ${{ matrix.arch }}
+          GOOS: ${{ env.GOOS }}
+          EXT: ${{ env.EXT }}
+        run: |
+          go build -o SNI-Finder-${{ env.GOOS }}-${{ matrix.arch }}${{ env.EXT }} .
+
+      - name: Upload binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: SNI-Finder-${{ env.GOOS }}-${{ matrix.arch }}${{ env.EXT }}
+          path: SNI-Finder-${{ env.GOOS }}-${{ matrix.arch }}${{ env.EXT }}
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Create bin directory
+        run: |
+          mkdir -p ${{ env.BIN_PATH }}
+
+      - name: Download binaries
+        uses: actions/download-artifact@v4
+        with:
+          path: ${{ env.BIN_PATH }}
+          pattern: SNI-Finder-*
+          merge-multiple: true
+
+      - name: Display structure of downloaded files
+        run: ls -R ${{ env.BIN_PATH }}
+
+      - name: Release with assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.BIN_PATH }}/*
